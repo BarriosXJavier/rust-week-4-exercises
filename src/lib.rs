@@ -162,32 +162,44 @@ pub enum CliCommand {
 }
 
 // Decoding legacy transaction
+// TODO: Parse binary data into a LegacyTransaction
+// Minimum length is 10 bytes (4 version + 4 inputs count + 4 lock_time)
 impl TryFrom<&[u8]> for LegacyTransaction {
     type Error = BitcoinError;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        // TODO: Parse binary data into a LegacyTransaction
-        // Minimum length is 10 bytes (4 version + 4 inputs count + 4 lock_time)
-        if data.len() < 8 {
+        if data.len() < 16 {
             return Err(BitcoinError::InvalidTransaction);
         }
 
         let version = i32::from_le_bytes(
             data[0..4]
                 .try_into()
-                .map_err(|_| BitcoinError::InvalidTransaction)?,
+                .map_err(|_| BitcoinError::InvalidTransaction)?
+        );
+
+        let inputs_count = u32::from_le_bytes(
+            data[4..8]
+                .try_into()
+                .map_err(|_| BitcoinError::InvalidTransaction)?
+        );
+
+        let outputs_count = u32::from_le_bytes(
+            data[8..12]
+                .try_into()
+                .map_err(|_| BitcoinError::InvalidTransaction)?
         );
 
         let lock_time = u32::from_le_bytes(
-            data[4..8]
+            data[12..16]
                 .try_into()
-                .map_err(|_| BitcoinError::InvalidTransaction)?,
+                .map_err(|_| BitcoinError::InvalidTransaction)?
         );
 
         Ok(LegacyTransaction {
             version,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            inputs: Vec::with_capacity(inputs_count as usize),
+            outputs: Vec::with_capacity(outputs_count as usize),
             lock_time,
         })
     }
